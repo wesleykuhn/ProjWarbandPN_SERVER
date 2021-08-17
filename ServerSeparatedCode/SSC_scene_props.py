@@ -6,8 +6,8 @@
 # OVERRIDE ####################################
 ###############################################
 # FROM:
-("pn_bank_deposit", sokf_invisible|spr_chest_flags(1), "pw_invisible_chest","bo_pw_invisible_chest", spr_item_chest_triggers(hit_points=2000, inventory_count=12, max_item_length=120)),
-("pn_bank_withdraw", sokf_invisible|spr_chest_flags(1), "pw_invisible_chest","bo_pw_invisible_chest", spr_item_chest_triggers(hit_points=2000, inventory_count=12, max_item_length=120)),
+("pn_bank_deposit", sokf_invisible|spr_chest_flags(1), "pw_invisible_chest","bo_pw_invisible_chest", spr_client_bank_triggers(hit_points=2000, inventory_count=12, max_item_length=120)),
+("pn_bank_withdraw", sokf_invisible|spr_chest_flags(1), "pw_invisible_chest","bo_pw_invisible_chest", spr_client_bank_triggers(hit_points=2000, inventory_count=12, max_item_length=120)),
 # TO:
 ("pn_bank_deposit", sokf_invisible|spr_chest_flags(1), "pw_invisible_chest","bo_pw_invisible_chest", spr_bank_deposit_triggers()),
 ("pn_bank_withdraw", sokf_invisible|spr_chest_flags(1), "pw_invisible_chest","bo_pw_invisible_chest", spr_bank_withdraw_triggers()),
