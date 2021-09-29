@@ -124,3 +124,26 @@ agent_dismount = (ti_on_agent_dismount, 0, 0, [], # server: make horses stand st
     (agent_set_scripted_destination, ":horse_agent_id", pos1, 0),
     ])
 
+agent_killed = (ti_on_agent_killed_or_wounded, 0, 0, [], # server and clients: handle messages, score, loot, and more after agents die
+   [(store_trigger_param_1, ":dead_agent_id"),
+    (store_trigger_param_2, ":killer_agent_id"),
+    (try_begin),
+      (agent_get_player_id, ":player_id", ":dead_agent_id"),
+      (gt, ":player_id", -1),
+      (player_get_slot, ":disconnected_bool", ":player_id", slot_player_disconnect_call),
+		  (try_begin),
+			  (eq, ":disconnected_bool", 0),
+			  (agent_get_player_id, ":player_id", ":dead_agent_id"),
+			  (call_script, "script_api_kill_player_update", ":player_id"),
+			  (call_script, "script_client_check_show_respawn_time_counter", ":dead_agent_id"),
+			  (call_script, "script_apply_consequences_for_agent_death", ":dead_agent_id", ":killer_agent_id"),
+			  (multiplayer_is_server),
+			  (call_script, "script_setup_agent_for_respawn", ":dead_agent_id"),
+		  (else_try),
+			  #player left, dont drop loot etc
+		  (try_end),
+	(try_end),
+	(call_script, "script_check_animal_killed", ":dead_agent_id", ":killer_agent_id"),
+	#(call_script, "script_check_spawn_bots", ":dead_agent_id"),
+    ])
+

@@ -1,0 +1,8 @@
+-Copy all client MS files and paste into "ToBuildFiles".
+
+-Copy and paste to override the .py files inside "FilesToOverrideTheOriginal".
+
+-All the files inside "ServerSeparatedCode" need to be open, readed and to the required 
+additions and overrides.
+
+-Copy and paste "build_module.bat" and "module.info.py" inside "ToBuildFiles".

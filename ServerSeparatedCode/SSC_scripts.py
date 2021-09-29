@@ -29,29 +29,19 @@
 # cf_log_money_from_chest
 # cf_log_money_to_chest
 # cf_log_use_money_bag
+# wse_chat_message_received
+# api_ban_player_with_details
+# api_ban_player
+# api_kill_player_update
 
 ###############################################
 # LINES TO ADD ################################
 ###############################################
-# In the event:
+# In the network received event:
 (else_try),
-        (eq, ":event_type", client_event_agent_loot_armor),
-        (store_script_param, ":corpse_instance_id", 3),
-        (try_begin),
-          (prop_instance_is_valid, ":corpse_instance_id"),
-          (neg | scene_prop_slot_eq, ":corpse_instance_id", slot_scene_prop_inventory_unique_id, 0),
-          (prop_instance_get_scene_prop_kind, ":scene_prop_id", ":corpse_instance_id"),
-          (eq, ":scene_prop_id", "itm_agent_corpse"),
-          (player_get_agent_id, ":agent_id", ":sender_player_id"),
-          (agent_is_active, ":agent_id"),
-          (agent_is_alive, ":agent_id"),
-          (agent_get_position, pos1, ":agent_id"),
-          (prop_instance_get_position, pos2, ":corpse_instance_id"),
-          (get_sq_distance_between_positions, ":sq_distance", pos1, pos2),
-          (le, ":sq_distance", sq(max_distance_to_loot)),
-          (call_script, "script_cf_use_inventory", ":agent_id", ":corpse_instance_id", 0),
-        (try_end),
-# Add the before last line:
+  (eq, ":event_type", client_event_agent_loot_armor),
+
+# Add the before last try_end:
 (else_try),
         (eq, ":event_type", client_event_agent_loot_armor),
         (store_script_param, ":corpse_instance_id", 3),
@@ -68,8 +58,16 @@
           (get_sq_distance_between_positions, ":sq_distance", pos1, pos2),
           (le, ":sq_distance", sq(max_distance_to_loot)),
           (call_script, "script_cf_use_inventory", ":agent_id", ":corpse_instance_id", 0),
-(call_script, "script_cf_log_loot", ":agent_id"),
+(call_script, "script_cf_log_loot", ":agent_id"), #this line
         (try_end),
+
+# In the script "cf_admin_action", in below condition:
+(else_try),
+  (eq, ":admin_action", admin_action_ban_player_perm),
+  (player_slot_eq, ":admin_player_id", slot_player_admin_no_permanent_ban, 0),
+
+# Replace the next line with the following:
+(call_script, "script_api_ban_player", ":target_player_id", ":admin_player_id"),
 
 
 
@@ -79,7 +77,6 @@
 ("game_receive_url_response", # called by the game when a response is received from a web server, if used
    [#(store_script_param, ":integer_count", 1),
     #(store_script_param, ":string_count", 2),
-
     (assign, ":return_code", reg0),
     (try_begin),
       # Load Player and his Gear
@@ -87,7 +84,6 @@
       (assign, ":player_id", reg1),
       #(assign, ":bank_gold", reg2),
       (call_script, "script_player_adjust_gold", ":player_id", reg3, 0),
-      
       (try_begin),
         (gt, reg4, 0),
         (player_add_spawn_item, ":player_id", ek_head, reg4),
@@ -133,18 +129,14 @@
         (player_add_spawn_item, ":player_id", ek_horse, reg12),
         (player_set_slot, ":player_id", slot_player_equip_horse, reg12),
       (try_end),
-      
       (player_set_troop_id, ":player_id", reg13),
-      
       (try_begin),
         (call_script, "script_change_faction", ":player_id", reg14, change_faction_type_respawn),
       (try_end),
-
       # (try_begin),
       #   (player_is_admin, ":player_id"),
       #   (call_script, "script_set_admin_permissions", ":player_id", reg17),
       # (try_end),
-
       (str_store_string, s10, "@Welcome to our Server! Your token is: {s0}"),
       (str_store_string, s11, "@You currently have {reg2} gold in your bank account!"),
       (multiplayer_send_string_to_player, ":player_id", server_event_local_chat, s10),
@@ -605,268 +597,413 @@
 ###############################################
 # ADD #########################################
 ###############################################
-    ("api_bank_system_call",
-        [
-            (store_script_param, ":player_id", 1),
-            (store_script_param, ":to_do", 2),
-            (try_begin),
-                (eq, ":to_do", 1), #Withdraw
-                (str_store_string, s20, "str_api_host_controller"),
-                (str_store_string, s21, "str_api_password"),
-                (str_encode_url, s21),
-                (assign, reg20, ":player_id"),
-                (player_get_unique_id, reg21, ":player_id"),
-                (send_message_to_url, "@{s20}?scpass={s21}&function=5&playerid={reg20}&guid={reg21}"),
-                (server_add_message_to_log, "@{s20}?scpass={s21}&function=5&playerid={reg20}&guid={reg21}"),
-            (else_try),
-                (eq, ":to_do", 2), #Deposit
-                (player_get_gold, reg24, ":player_id"),
-                (str_store_string, s20, "str_api_host_controller"),
-                (str_store_string, s21, "str_api_password"),
-                (str_encode_url, s21),
-                (assign, reg20, ":player_id"),
-                (player_get_unique_id, reg21, ":player_id"),
-                (send_message_to_url, "@{s20}?scpass={s21}&function=6&playerid={reg20}&guid={reg21}&putonbank={reg24}"),
-                (server_add_message_to_log, "@{s20}?scpass={s21}&function=6&playerid={reg20}&guid={reg21}&putonbank={reg24}"),
-            (try_end)
-        ]
-    ),
+  ("api_bank_system_call",
+    [
+      (store_script_param, ":player_id", 1),
+      (store_script_param, ":to_do", 2),
+      (try_begin),
+        (eq, ":to_do", 1), #Withdraw
+        (str_store_string, s20, "str_api_host_controller"),
+        (str_store_string, s21, "str_api_password"),
+        (str_encode_url, s21),
+        (assign, reg20, ":player_id"),
+        (player_get_unique_id, reg21, ":player_id"),
+        (send_message_to_url, "@{s20}?scpass={s21}&function=5&playerid={reg20}&guid={reg21}"),
+        (server_add_message_to_log, "@{s20}?scpass={s21}&function=5&playerid={reg20}&guid={reg21}"),
+      (else_try),
+        (eq, ":to_do", 2), #Deposit
+        (player_get_gold, reg24, ":player_id"),
+        (str_store_string, s20, "str_api_host_controller"),
+        (str_store_string, s21, "str_api_password"),
+        (str_encode_url, s21),
+        (assign, reg20, ":player_id"),
+        (player_get_unique_id, reg21, ":player_id"),
+        (send_message_to_url, "@{s20}?scpass={s21}&function=6&playerid={reg20}&guid={reg21}&putonbank={reg24}"),
+        (server_add_message_to_log, "@{s20}?scpass={s21}&function=6&playerid={reg20}&guid={reg21}&putonbank={reg24}"),
+      (try_end)
+    ]
+  ),
 
-    ("api_agent_get_position", #will load armor etc
-        [
-            (store_script_param, ":player_id", 1),
-            (store_script_param, ":agent_id", 2),
+  ("api_agent_get_position", #will load armor etc
+    [
+      (store_script_param, ":player_id", 1),
+      (store_script_param, ":agent_id", 2),
+      (str_store_string, s20, "str_api_host_controller"),
+      (str_store_string, s21, "str_api_password"),
+      (str_encode_url, s21),
+      (assign, reg20, ":player_id"),
+      (player_get_unique_id, reg21, ":player_id"),
+      (assign, reg22, ":agent_id"),
+      (send_message_to_url, "@{s20}?scpass={s21}&function=2&playerid={reg20}&agentid={reg22}&guid={reg21}"),
+      (server_add_message_to_log, "@{s20}?scpass={s21}&function=2&playerid={reg20}&agentid={reg22}&guid={reg21}"),
+    ]
+  ),
 
-            (str_store_string, s20, "str_api_host_controller"),
-            (str_store_string, s21, "str_api_password"),
-            (str_encode_url, s21),
-            (assign, reg20, ":player_id"),
-            (player_get_unique_id, reg21, ":player_id"),
-            (assign, reg22, ":agent_id"),
-            (send_message_to_url, "@{s20}?scpass={s21}&function=2&playerid={reg20}&agentid={reg22}&guid={reg21}"),
-            (server_add_message_to_log, "@{s20}?scpass={s21}&function=2&playerid={reg20}&agentid={reg22}&guid={reg21}"),
-        ]
-    ),
+  ("cf_log_damage",
+    [
+      (multiplayer_is_server),
+      (store_script_param, ":attacked_agent_id", 1),
+      (store_script_param, ":attacker_agent_id", 2),
+      (store_script_param, ":damage_dealt", 3),
+      (try_begin),
+        (neg|eq,":attacked_agent_id",":attacker_agent_id"),#dont log if he hurts himself
+        (assign,":log_the_data",1),
+        (try_begin),
+          (neg|agent_is_human,":attacked_agent_id"),
+          (str_store_string,s1,"@Horse"),
+          (try_begin),
+            (agent_get_rider,":rider_agent_id", ":attacked_agent_id"),
+            (agent_is_active,":rider_agent_id"),
+            (try_begin),
+              (eq,":rider_agent_id",":attacker_agent_id"), ##Check to see if he is damaging his own horse
+              (assign,":log_the_data",0),
+            (try_end),
+            (agent_get_player_id,":rider_player_id",":rider_agent_id"),
+            (str_store_player_username,s10, ":rider_player_id"),
+            (str_store_string,s1,"@Horse ({s10})"),
+          (try_end),
+        (else_try),
+          (agent_get_player_id,":attacked_player_id",":attacked_agent_id"),
+          (str_store_player_username,s1, ":attacked_player_id"),
+        (try_end),
+        (try_begin),
+          (eq,":log_the_data",1),
+          (neg|agent_is_human,":attacker_agent_id"),
+          (str_store_string,s0,"@Horse"),
+          (try_begin),
+            (agent_get_rider,":rider_agent_id", ":attacker_agent_id"),
+            (agent_is_active,":rider_agent_id"),
+            (agent_get_player_id,":rider_player_id",":rider_agent_id"),
+            (str_store_player_username,s15, ":rider_player_id"),
+            (str_store_string,s0,"@Horse ({s15})"),
+          (try_end),
+        (else_try),
+          (eq,":log_the_data",1),
+          (agent_get_player_id,":attacker_player_id",":attacker_agent_id"),
+          (str_store_player_username,s0, ":attacker_player_id"),
+        (try_end),
+        (try_begin),
+          (eq,":log_the_data",1),
+          (assign,reg0,":damage_dealt"),
+          (server_add_message_to_log, "@{s0} attacked {s1} dealing {reg0} damage"),
+        (try_end),
+      (try_end)
+    ]
+  ),
 
-    ("cf_log_damage",
-        [
-            (multiplayer_is_server),
-            (store_script_param, ":attacked_agent_id", 1),
-            (store_script_param, ":attacker_agent_id", 2),
-            (store_script_param, ":damage_dealt", 3),
-            (try_begin),
-                (neg|eq,":attacked_agent_id",":attacker_agent_id"),#dont log if he hurts himself
-                (assign,":log_the_data",1),
-                (try_begin),
-                    (neg|agent_is_human,":attacked_agent_id"),
-                    (str_store_string,s1,"@Horse"),
-                    (try_begin),
-                        (agent_get_rider,":rider_agent_id", ":attacked_agent_id"),
-                        (agent_is_active,":rider_agent_id"),
-                        (try_begin),
-                            (eq,":rider_agent_id",":attacker_agent_id"), ##Check to see if he is damaging his own horse
-                            (assign,":log_the_data",0),
-                        (try_end),
-                        (agent_get_player_id,":rider_player_id",":rider_agent_id"),
-                        (str_store_player_username,s10, ":rider_player_id"),
-                        (str_store_string,s1,"@Horse ({s10})"),
-                    (try_end),
-                    (else_try),
-                        (agent_get_player_id,":attacked_player_id",":attacked_agent_id"),
-                        (str_store_player_username,s1, ":attacked_player_id"),
-                    (try_end),
-                    (try_begin),
-                        (eq,":log_the_data",1),
-                        (neg|agent_is_human,":attacker_agent_id"),
-                        (str_store_string,s0,"@Horse"),
-                        (try_begin),
-                            (agent_get_rider,":rider_agent_id", ":attacker_agent_id"),
-                            (agent_is_active,":rider_agent_id"),
-                            (agent_get_player_id,":rider_player_id",":rider_agent_id"),
-                            (str_store_player_username,s15, ":rider_player_id"),
-                            (str_store_string,s0,"@Horse ({s15})"),
-                        (try_end),
-                    (else_try),
-                        (eq,":log_the_data",1),
-                        (agent_get_player_id,":attacker_player_id",":attacker_agent_id"),
-                        (str_store_player_username,s0, ":attacker_player_id"),
-                    (try_end),
-                (try_begin),
-                    (eq,":log_the_data",1),
-                    (assign,reg0,":damage_dealt"),
-                    (server_add_message_to_log, "@{s0} attacked {s1} dealing {reg0} damage"),
-                (try_end),
-            (try_end)
-        ]
-    ),
-
-    ("cf_log_mount",
-        [
-            (multiplayer_is_server),
-            (store_script_param, ":agent_id", 1),
-            (store_script_param, ":horse_agent_id", 2),
-            (try_begin),
-                (agent_get_player_id,":player_id",":agent_id"),
-                (gt, ":player_id", 0),
-                (player_is_active, ":player_id"),
-                (str_store_player_username, s1, ":player_id"),
-                (agent_get_item_id, ":horse_item_id", ":horse_agent_id"),
-                (str_store_item_name,s2 ,":horse_item_id"),
-                (server_add_message_to_log, "@{s1} did mount a {s2}"),
-            (try_end),
-        ]
-    ),
+  ("cf_log_mount",
+    [
+      (multiplayer_is_server),
+      (store_script_param, ":agent_id", 1),
+      (store_script_param, ":horse_agent_id", 2),
+      (try_begin),
+        (agent_get_player_id,":player_id",":agent_id"),
+        (gt, ":player_id", 0),
+        (player_is_active, ":player_id"),
+        (str_store_player_username, s1, ":player_id"),
+        (agent_get_item_id, ":horse_item_id", ":horse_agent_id"),
+        (str_store_item_name,s2 ,":horse_item_id"),
+        (server_add_message_to_log, "@{s1} did mount a {s2}"),
+      (try_end),
+    ]
+  ),
         
-    ("cf_log_dismount",
-        [
-            (multiplayer_is_server),
-            (store_script_param, ":agent_id", 1),
-            (store_script_param, ":horse_agent_id", 2),
-            (try_begin),
-                (agent_get_player_id,":player_id",":agent_id"),
-                (gt, ":player_id", 0),
-                (player_is_active, ":player_id"),
-                (str_store_player_username, s1, ":player_id"),
-                (agent_get_item_id, ":horse_item_id", ":horse_agent_id"),
-                (str_store_item_name, s2 ,":horse_item_id"),
-                (server_add_message_to_log, "@{s1} did dismount a {s2}"),
-            (try_end),
-        ]
-    ),
+  ("cf_log_dismount",
+    [
+      (multiplayer_is_server),
+      (store_script_param, ":agent_id", 1),
+      (store_script_param, ":horse_agent_id", 2),
+      (try_begin),
+        (agent_get_player_id,":player_id",":agent_id"),
+        (gt, ":player_id", 0),
+        (player_is_active, ":player_id"),
+        (str_store_player_username, s1, ":player_id"),
+        (agent_get_item_id, ":horse_item_id", ":horse_agent_id"),
+        (str_store_item_name, s2 ,":horse_item_id"),
+        (server_add_message_to_log, "@{s1} did dismount a {s2}"),
+      (try_end),
+    ]
+  ),
         
-    ("cf_log_loot",
-        [
-            (multiplayer_is_server),
-            (store_script_param, ":agent_id", 1),
-            (agent_get_player_id, ":player_id", ":agent_id"),
-            (try_begin),
-                (gt, ":player_id", 0),
-                (player_is_active, ":player_id"),
-                (str_store_player_username,s1, ":player_id"),
-                (server_add_message_to_log, "@{s1} looted a corpse."),
-            (try_end),
-        ]
-    ),
+  ("cf_log_loot",
+    [
+      (multiplayer_is_server),
+      (store_script_param, ":agent_id", 1),
+      (agent_get_player_id, ":player_id", ":agent_id"),
+      (try_begin),
+        (gt, ":player_id", 0),
+        (player_is_active, ":player_id"),
+        (str_store_player_username,s1, ":player_id"),
+        (server_add_message_to_log, "@{s1} looted a corpse."),
+      (try_end),
+    ]
+  ),
         
-    ("cf_log_cart",
-        [
-            (multiplayer_is_server),
-            (store_script_param, ":player_id", 1),
-            (try_begin),
-                (str_store_player_username,s1, ":player_id"),
-                (server_add_message_to_log, "@{s1} looked into a cart."),
-            (try_end),
-        ]
-    ),
+  ("cf_log_cart",
+    [
+      (multiplayer_is_server),
+      (store_script_param, ":player_id", 1),
+      (try_begin),
+        (str_store_player_username,s1, ":player_id"),
+        (server_add_message_to_log, "@{s1} looked into a cart."),
+      (try_end),
+    ]
+  ),
         
-    ("cf_log_pickup",
-        [
-            (multiplayer_is_server),
-            (store_script_param, ":agent_id", 1),
-            (store_script_param, ":item_id", 2),
-            (agent_get_player_id,":player_id",":agent_id"),
-            (str_store_player_username,s1, ":player_id"),
-            (str_store_item_name, s2, ":item_id"),         
-            (try_begin),
-                (server_add_message_to_log, "@{s1} picked up {s2} from the ground."),
-            (try_end),
-        ]
-    ),
+  ("cf_log_pickup",
+    [
+      (multiplayer_is_server),
+      (store_script_param, ":agent_id", 1),
+      (store_script_param, ":item_id", 2),
+      (agent_get_player_id,":player_id",":agent_id"),
+      (str_store_player_username,s1, ":player_id"),
+      (str_store_item_name, s2, ":item_id"),         
+      (try_begin),
+        (server_add_message_to_log, "@{s1} picked up {s2} from the ground."),
+      (try_end),
+    ]
+  ),
         
-    ("cf_log_drop",
-        [
-            (multiplayer_is_server),
-            (store_script_param, ":agent_id", 1),
-            (store_script_param, ":item_id", 2),
-            (agent_get_player_id,":player_id",":agent_id"),
-            (str_store_player_username,s1, ":player_id"),
-            (str_store_item_name, s2, ":item_id"),         
-            (try_begin),
-                (server_add_message_to_log, "@{s1} droppped {s2} on the ground."),
-            (try_end),
-        ]
-    ),
+  ("cf_log_drop",
+    [
+      (multiplayer_is_server),
+      (store_script_param, ":agent_id", 1),
+      (store_script_param, ":item_id", 2),
+      (agent_get_player_id,":player_id",":agent_id"),
+      (str_store_player_username,s1, ":player_id"),
+      (str_store_item_name, s2, ":item_id"),         
+      (try_begin),
+        (server_add_message_to_log, "@{s1} droppped {s2} on the ground."),
+      (try_end),
+    ]
+  ),
         
-    ("cf_log_hit_chest",
-        [
-            (multiplayer_is_server),
-            (store_script_param, ":agent_id", 1),
-            (store_script_param, ":hit_damage", 2),
-            (agent_get_player_id,":player_id",":agent_id"),
-            (gt, ":player_id", 0),
-            (player_is_active, ":player_id"),
-            (str_store_player_username,s1, ":player_id"),  
-            (assign, reg1, ":hit_damage"),
-            (try_begin),
-                (server_add_message_to_log, "@{s1} hit chest for {reg1} damage."),
-            (try_end),
-        ]
-    ),
+  ("cf_log_hit_chest",
+    [
+      (multiplayer_is_server),
+      (store_script_param, ":agent_id", 1),
+      (store_script_param, ":hit_damage", 2),
+      (agent_get_player_id,":player_id",":agent_id"),
+      (gt, ":player_id", 0),
+      (player_is_active, ":player_id"),
+      (str_store_player_username,s1, ":player_id"),  
+      (assign, reg1, ":hit_damage"),
+      (try_begin),
+        (server_add_message_to_log, "@{s1} hit chest for {reg1} damage."),
+      (try_end),
+    ]
+  ),
         
-    ("cf_log_hit_door",
-        [
-            (multiplayer_is_server),
-            (store_script_param, ":agent_id", 1),
-            (store_script_param, ":hit_damage", 2),
-            (agent_get_player_id,":player_id",":agent_id"),
-            (gt, ":player_id", 0),
-            (player_is_active, ":player_id"),
-            (str_store_player_username,s1, ":player_id"),  
-            (assign, reg1, ":hit_damage"),
-            (try_begin),
-                (server_add_message_to_log, "@{s1} hit door for {reg1} damage."),
-            (try_end),
-        ]
-    ),
+  ("cf_log_hit_door",
+    [
+      (multiplayer_is_server),
+      (store_script_param, ":agent_id", 1),
+      (store_script_param, ":hit_damage", 2),
+      (agent_get_player_id,":player_id",":agent_id"),
+      (gt, ":player_id", 0),
+      (player_is_active, ":player_id"),
+      (str_store_player_username,s1, ":player_id"),  
+      (assign, reg1, ":hit_damage"),
+      (try_begin),
+        (server_add_message_to_log, "@{s1} hit door for {reg1} damage."),
+      (try_end),
+    ]
+  ),
         
-    ("cf_log_drop_money_bag",
-        [
-            (multiplayer_is_server),
-            (store_script_param, ":player_id", 1),
-            (store_script_param, ":gold_amount", 2),
-            (str_store_player_username, s1, ":player_id"),    
-            (assign, reg1, ":gold_amount"),
-            (try_begin),
-                (server_add_message_to_log, "@{s1} did drop a money bag with {reg1} gold."),
-            (try_end),
-        ]
-    ),
+  ("cf_log_drop_money_bag",
+    [
+      (multiplayer_is_server),
+      (store_script_param, ":player_id", 1),
+      (store_script_param, ":gold_amount", 2),
+      (str_store_player_username, s1, ":player_id"),    
+      (assign, reg1, ":gold_amount"),
+      (try_begin),
+        (server_add_message_to_log, "@{s1} did drop a money bag with {reg1} gold."),
+      (try_end),
+    ]
+  ),
     
-    ("cf_log_money_from_chest",
-        [
-            (multiplayer_is_server),
-            (store_script_param, ":player_id", 1),
-            (store_script_param, ":gold_requested", 2),
-            (str_store_player_username, s1, ":player_id"),    
-            (assign, reg1, ":gold_requested"),
-            (try_begin),
-                (server_add_message_to_log, "@{s1} did withdraw {reg1} money from chest."),
-            (try_end),
-        ]
-    ),
+  ("cf_log_money_from_chest",
+    [
+      (multiplayer_is_server),
+      (store_script_param, ":player_id", 1),
+      (store_script_param, ":gold_requested", 2),
+      (str_store_player_username, s1, ":player_id"),    
+      (assign, reg1, ":gold_requested"),
+      (try_begin),
+        (server_add_message_to_log, "@{s1} did withdraw {reg1} money from chest."),
+      (try_end),
+    ]
+  ),
         
-    ("cf_log_money_to_chest",
-        [
-            (multiplayer_is_server),
-            (store_script_param, ":player_id", 1),
-            (store_script_param, ":gold_value", 2),
-            (str_store_player_username,s1, ":player_id"),    
-            (assign, reg1, ":gold_value"),
-            (try_begin),
-                (server_add_message_to_log, "@{s1} put {reg1} gold into a chest."),
-            (try_end),
-        ]
-    ),
+  ("cf_log_money_to_chest",
+    [
+      (multiplayer_is_server),
+      (store_script_param, ":player_id", 1),
+      (store_script_param, ":gold_value", 2),
+      (str_store_player_username,s1, ":player_id"),    
+      (assign, reg1, ":gold_value"),
+      (try_begin),
+          (server_add_message_to_log, "@{s1} put {reg1} gold into a chest."),
+      (try_end),
+    ]
+  ),
     
-    ("cf_log_use_money_bag",
-        [
-            (multiplayer_is_server),
-            (store_script_param, ":player_id", 1),
-            (store_script_param, ":gold_value", 2),
-            (str_store_player_username,s1, ":player_id"),    
-            (assign, reg1, ":gold_value"),
-            (try_begin),
-                (server_add_message_to_log, "@{s1} used a money bag containing {reg1} gold."),
-            (try_end),
-        ]
-    ),
+  ("cf_log_use_money_bag",
+    [
+      (multiplayer_is_server),
+      (store_script_param, ":player_id", 1),
+      (store_script_param, ":gold_value", 2),
+      (str_store_player_username,s1, ":player_id"),    
+      (assign, reg1, ":gold_value"),
+      (try_begin),
+        (server_add_message_to_log, "@{s1} used a money bag containing {reg1} gold."),
+      (try_end),
+    ]
+  ),
+
+  ("wse_chat_message_received", 
+  [(store_script_param, ":player_no", 1),
+  #/help
+  (try_begin),
+    (str_contains, s0, "@/help"),
+    (str_store_string, s3, "@IG-Commands"),
+    (str_store_string, s6, "@/help - shows help"),
+    (str_store_string, s4, "@/guid - shows your GUID"),
+    (str_store_string, s10, "@/whoisadmin - displays all online admins"),
+    (str_store_string, s11, "@/showguid PLAYERNAME - displays the GUID of PLAYERNAME"),
+    (str_store_string, s9, "@/ban|GUID|REASON|DAYS|TIME - bans player with reason for X days till X time (time example: 14 - ONLY USE full hours, basically means 14:00!)"),
+    (str_store_string, s12, "@/ban|15551|because he did rdm|5|12 - means GUID 15551 will be banned for 5 days till 12:00 o' clock because he did rdm"),
+    (multiplayer_send_string_to_player, ":player_no", server_event_local_chat, s3),
+    (multiplayer_send_string_to_player, ":player_no", server_event_local_chat, s6),
+    (multiplayer_send_string_to_player, ":player_no", server_event_local_chat, s4),
+    (multiplayer_send_string_to_player, ":player_no", server_event_local_chat, s10),
+    (multiplayer_send_string_to_player, ":player_no", server_event_local_chat, s11),
+    (try_begin),
+      (player_is_admin, ":player_no"),
+      (multiplayer_send_string_to_player, ":player_no", server_event_local_chat_shout, s9),
+      (multiplayer_send_string_to_player, ":player_no", server_event_local_chat_shout, s12),
+    (try_end),
+    (set_trigger_result, 1),
+  (try_end),
+  #/ban GUID REASON
+  (try_begin),
+    (player_is_admin, ":player_no"),
+    (str_contains, s0, "@/ban"),
+    (str_split, ":parts", s4, s0, "@|"), #so s4 should be /ban - s5 should be GUID - s6 = reason - s7 = days - s8 = time
+    (str_to_num, ":search_guid", s5),
+    (assign, ":loop_break", 0),
+    (try_for_players, ":cur_player"),
+    (eq, ":loop_break", 0),
+    (player_is_active, ":cur_player"),
+    (player_get_unique_id, ":cur_player_guid", ":cur_player"),
+    (eq, ":search_guid", ":cur_player_guid"),
+    (str_store_player_username, s59, ":cur_player"),
+    #(assign, ":found_player", ":cur_player"),
+    (assign, ":loop_break", 1),
+    (try_end),
+    (try_begin),
+      (eq, ":loop_break", 1),
+      (str_store_string, s55, s6), #reason
+      (str_store_string, s56, s7), #days
+      (str_store_string, s57, s8), #time
+      (call_script, "script_api_ban_player_with_details", ":cur_player", ":player_no"),
+      (str_store_string, s58, "@Player {s59} banned!"),
+      (multiplayer_send_string_to_player, ":player_no", server_event_local_chat, s58),
+    (else_try),
+      (str_store_string, s58, "@No online player found with that GUID!"),
+      (multiplayer_send_string_to_player, ":player_no", server_event_local_chat, s58),
+    (try_end),
+    (set_trigger_result, 1),
+  (try_end),
+  #/guid
+  (try_begin),
+    (str_contains, s0, "@/guid"),
+    (player_get_unique_id, reg20, ":player_no"),
+    (str_store_string, s3, "@Your GUID is: {reg20}"),
+    (multiplayer_send_string_to_player, ":player_no", server_event_local_chat, s3),
+    (set_trigger_result, 1),
+  (try_end),
+  #/whoisadmin
+  (try_begin),
+    (str_contains, s0, "@/whoisadmin"),
+    (str_store_string, s3, "@These admins are online currently:"),
+    (multiplayer_send_string_to_player, ":player_no", server_event_local_chat_shout, s3),
+    (try_for_players, ":cur_player"),
+      (player_is_active, ":cur_player"),
+      (player_is_admin, ":cur_player"),
+      (str_store_player_username, s4, ":cur_player"),
+      (multiplayer_send_string_to_player, ":player_no", server_event_local_chat, s4),
+    (try_end),
+    (set_trigger_result, 1),
+  (try_end),
+  #/showguid Playername
+  (try_begin),
+    (str_contains, s0, "@/showguid"), #/showguid PLAYERNAME
+    (str_store_replace, s1, s0, "@/showguid ", "@ "), #s1 is playername now
+    (assign, ":loop_break", 0),
+    (try_for_players, ":current_player"),
+      (eq, ":loop_break", 0),
+      (player_is_active, ":current_player"),
+      (str_store_player_username, s2, ":current_player"),
+      (str_contains, s1, s2),
+      (player_get_unique_id, reg27, ":current_player"),
+      (assign, ":loop_break", 1),
+    (try_end),
+    (try_begin),
+      (eq, ":loop_break", 0), #didnt find any player with that name
+      (str_store_string, s3, "@No online player with that name found!"),
+      (multiplayer_send_string_to_player, ":player_no", server_event_local_chat, s3),
+    (else_try),
+      (str_store_string, s3, "@{s2}'s GUID is: {reg27}!"),
+      (multiplayer_send_string_to_player, ":player_no", server_event_local_chat, s3),
+    (try_end),
+    (set_trigger_result, 1),
+  (try_end),
+  ]),
+
+  ("api_ban_player_with_details",
+  [(store_script_param, ":player_id", 1),
+    (store_script_param, ":admin_player_id", 2),
+    (str_store_player_username, s10, ":admin_player_id"),
+    (str_store_string, s14, "@{s55}|{s56}|{s57}|{s10}"),
+    (str_store_string, s20, "str_api_host_controller"),
+    (str_store_string, s21, "str_api_password"),
+    (str_encode_url, s21),
+    (str_encode_url, s14),
+    (assign, reg20, ":player_id"),
+    (player_get_unique_id, reg21, ":player_id"),
+    (send_message_to_url, "@{s20}?scpass={s21}&function=7&playerid={reg20}&guid={reg21}&bandata={s14}"),
+    (server_add_message_to_log, "@{s20}?scpass={s21}&function=7&playerid={reg20}&guid={reg21}&bandata={s14}"),
+  ]),
+	
+  ("api_ban_player",
+  [(store_script_param, ":player_id", 1),
+    (store_script_param, ":admin_player_id", 2),
+    (str_store_player_username, s10, ":admin_player_id"), #4
+    (str_store_string, s11, "@Never, ban is permanent."), #2
+    (str_store_string, s12, "@No reason given"), #1
+    (str_store_string, s13, "@Please apply for an unban."), #3
+    (str_store_string, s14, "@{s12}|{s11}|{s13}|{s10}"),
+    (str_store_string, s20, "str_api_host_controller"),
+    (str_store_string, s21, "str_api_password"),
+    (str_encode_url, s21),
+    (str_encode_url, s14),
+    (assign, reg20, ":player_id"),
+    (player_get_unique_id, reg21, ":player_id"),
+    (send_message_to_url, "@{s20}?scpass={s21}&function=7&playerid={reg20}&guid={reg21}&bandata={s14}"),
+    (server_add_message_to_log, "@{s20}?scpass={s21}&function=7&playerid={reg20}&guid={reg21}&bandata={s14}"),
+  ]),
+
+  ("api_kill_player_update",
+   [(store_script_param, ":player_id", 1), # must be valid
+    (str_store_string, s20, "str_api_host_controller"),
+    (str_store_string, s21, "str_api_password"),
+    (str_encode_url, s21),
+    (assign, reg20, ":player_id"),
+    (str_store_player_username, s22, ":player_id"),
+    (str_encode_url, s22),
+    (player_get_unique_id, reg21, ":player_id"),
+    (send_message_to_url, "@{s20}?scpass={s21}&function=4&playerid={reg20}&username={s22}&guid={reg21}"),
+    (server_add_message_to_log, "@{s20}?scpass={s21}&function=4&playerid={reg20}&username={s22}&guid={reg21}"),
+  ]),
