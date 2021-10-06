@@ -1,0 +1,15 @@
+scn_scene_1 = 0
+scn_scene_2 = 1
+scn_scene_3 = 2
+scn_scene_4 = 3
+scn_scene_5 = 4
+scn_scene_6 = 5
+scn_scene_7 = 6
+scn_scene_8 = 7
+scn_scene_9 = 8
+scn_scene_10 = 9
+scn_scene_11 = 10
+scn_scene_12 = 11
+scn_scene_13 = 12
+scn_scene_14 = 13
+scn_scenes_end = 14

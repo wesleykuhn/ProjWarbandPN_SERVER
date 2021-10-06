@@ -1,0 +1,11 @@
+fac_commoners = 0
+fac_outlaws = 1
+fac_1 = 2
+fac_2 = 3
+fac_3 = 4
+fac_4 = 5
+fac_5 = 6
+fac_6 = 7
+fac_7 = 8
+fac_8 = 9
+fac_factions_end = 10
