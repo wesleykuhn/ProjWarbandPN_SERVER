@@ -13172,16 +13172,6 @@ scripts.extend([("game_start", []), # single player only, not used
     (else_try),
       (eq, "$g_preset_message_string_id", "str_s15_captured_trade_s18"),
       (play_sound, "snd_your_flag_taken"),
-    (else_try),
-      (eq, "$g_preset_message_string_id", "str_s1_now_hostile_towards_s10"),
-      (play_sound, "snd_flag_returned"),
-    (else_try),
-      (eq, "$g_preset_message_string_id", "str_s1_and_s10_made_peace"),
-      (play_sound, "snd_cheer_claps"),
-    (else_try),
-      (this_or_next|eq, "$g_preset_message_string_id", "str_s10_now_lord_of_s1"),
-      (eq, "$g_preset_message_string_id", "str_you_are_now_lord_of_s1"),
-      (play_sound, "snd_leader_rise"),
     (try_end),
 
     (assign, ":color", ":flags"), # unpack the color from the flags parameter
