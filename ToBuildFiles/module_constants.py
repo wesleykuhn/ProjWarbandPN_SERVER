@@ -80,11 +80,19 @@ slot_player_admin_end                 = 58
 
 # PN Save System
 slot_player_disconnect_call			      = 59
-slot_player_respawninsameplace		    = 60
-slot_player_saved_item_0              = 61
-slot_player_saved_item_1              = 62
-slot_player_saved_item_2              = 63
-slot_player_saved_item_3              = 64
+slot_player_saved_item_0              = 60
+slot_player_saved_item_1              = 61
+slot_player_saved_item_2              = 62
+slot_player_saved_item_3              = 63
+slot_player_saved_pos_x               = 64
+slot_player_saved_pos_y               = 65
+slot_player_saved_pos_z               = 66
+slot_player_saved_health              = 67
+slot_player_saved_food                = 68
+slot_player_saved_horse_health        = 69
+slot_player_new_player                = 70
+slot_player_saved_items_restored      = 71
+slot_player_saved_pos_restored        = 72
 
 # ***********************************************************
 # PN OTHERS CONSTANTS STUFF *********************************

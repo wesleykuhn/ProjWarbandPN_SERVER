@@ -200,16 +200,6 @@ player_exit = (ti_on_player_exit, 0, 0, [], # server: save player values on exit
 agent_spawn = (ti_on_agent_spawn, 0, 0, [], # server and clients: set up new agents after they spawn
    [(store_trigger_param_1, ":agent_id"),
     (call_script, "script_on_agent_spawned", ":agent_id"),
-    (agent_is_human, ":agent_id"),
-    (neq, ":agent_id", -1),
-    (agent_get_player_id, ":player_id", ":agent_id"),
-    (neq, ":player_id", -1),
-    (try_begin),
-      (player_slot_eq, ":player_id", slot_player_respawninsameplace, 0),
-      (call_script, "script_api_agent_get_position", ":player_id", ":agent_id"), #gets the player armour
-    (else_try),
-      (player_set_slot, ":player_id", slot_player_respawninsameplace, 0),
-    (try_end),
     ])
 
 agent_killed = (ti_on_agent_killed_or_wounded, 0, 0, [], # server and clients: handle messages, score, loot, and more after agents die

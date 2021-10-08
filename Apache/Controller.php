@@ -261,9 +261,12 @@ if($Function == 1) {
 			$health = $userContentArray->{'health'};
 			$food = $userContentArray->{'food'};
 			$token = $userContentArray->{'token'};
-			$adminlevel = $userContentArray->{'adminlevel'};
-			//HP, Food and Position is loaded when Agent does Spawn!
-			echo "0|$Player_ID|$bank|$carried|$head|$body|$foot|$gloves|$weapon1|$weapon2|$weapon3|$weapon4|$horse|$troop|$faction|$health|$food|$token|$adminlevel";
+			$x = $userContentArray->{'x'};
+			$y = $userContentArray->{'y'};
+			$z = $userContentArray->{'z'};
+			$horsehealth = $userContentArray->{'horsehealth'};
+			//$adminlevel = $userContentArray->{'adminlevel'};
+			echo "0|$Player_ID|$bank|$carried|$head|$body|$foot|$gloves|$weapon1|$weapon2|$weapon3|$weapon4|$horse|$troop|$faction|$health|$food|$x|$y|$z|$horsehealth|0|$token";
 			exit;
 			} else {
 				//User has no account so create one but check first if he can use the Player Name
@@ -324,7 +327,8 @@ if($Function == 1) {
 				$json = json_encode($creation);
 				file_put_contents($accountfile, $json);
 				
-				echo "0|$Player_ID|$start_bank|$start_carried_gold|-1|-1|-1|-1|-1|-1|-1|-1|-1|4|0|0|$token";
+				//The one before $token is bool: New player?
+				echo "0|$Player_ID|$start_bank|$start_carried_gold|-1|-1|-1|-1|-1|-1|-1|-1|-1|4|0|0|0|0|0|0|0|1|$token";
 				exit;
 			}
 	}
