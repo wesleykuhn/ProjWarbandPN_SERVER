@@ -16,3 +16,5 @@ slot_player_saved_health              = 68
 slot_player_saved_food                = 69
 slot_player_saved_horse_health        = 70
 slot_player_new_player                = 71
+slot_player_saved_pos_restored        = 72
+slot_player_saved_horse_hp_restored   = 73

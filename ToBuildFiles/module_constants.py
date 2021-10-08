@@ -93,6 +93,7 @@ slot_player_saved_horse_health        = 69
 slot_player_new_player                = 70
 slot_player_saved_items_restored      = 71
 slot_player_saved_pos_restored        = 72
+slot_player_saved_horse_hp_restored   = 73
 
 # ***********************************************************
 # PN OTHERS CONSTANTS STUFF *********************************

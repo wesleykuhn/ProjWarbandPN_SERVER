@@ -115,6 +115,7 @@ agent_dismount = (ti_on_agent_dismount, 0, 0, [], # server: make horses stand st
     (agent_set_scripted_destination, ":horse_agent_id", pos1, 0),
     ])
 
+# agent killed
 agent_killed = (ti_on_agent_killed_or_wounded, 0, 0, [], # server and clients: handle messages, score, loot, and more after agents die
    [(store_trigger_param_1, ":dead_agent_id"),
     (store_trigger_param_2, ":killer_agent_id"),
@@ -137,4 +138,76 @@ agent_killed = (ti_on_agent_killed_or_wounded, 0, 0, [], # server and clients: h
 	(call_script, "script_check_animal_killed", ":dead_agent_id", ":killer_agent_id"),
 	#(call_script, "script_check_spawn_bots", ":dead_agent_id"),
     ])
+
+# player_check_loop
+player_check_loop = (0, 0, 0.5, # server: check all players to see if any need agents spawned, also periodically lowering outlaw ratings
+   [(multiplayer_is_server),
+    (store_mission_timer_a, ":time"),
+    (get_max_players, ":max_players"),
+    (assign, ":loop_end", ":max_players"),
+    (try_for_range, ":player_id", "$g_loop_player_id", ":loop_end"), # continue from the last player id checked
+      (player_is_active, ":player_id"),
+      (player_get_slot, ":kick_at_time", ":player_id", slot_player_kick_at_time),
+      (try_begin), # kick after an interval if rejected by the name server
+        (gt, ":kick_at_time", 0),
+        (try_begin),
+          (ge, ":time", ":kick_at_time"),
+          (kick_player, ":player_id"),
+        (try_end),
+      (else_try),
+        # Player Horse Health adjust
+        (try_begin),
+          (player_slot_eq, ":player_id", slot_player_saved_horse_hp_restored, 0),
+          (player_get_agent_id, ":agent_id", ":player_id"),
+          (neq, ":agent_id", -1),
+          (agent_get_horse, ":player_horse", ":agent_id"),
+          (try_begin),
+            (neq, ":player_horse", -1),
+            (player_get_slot, ":last_x", ":player_id", slot_player_saved_pos_x),
+            (player_get_slot, ":last_y", ":player_id", slot_player_saved_pos_y),
+            (player_get_slot, ":last_z", ":player_id", slot_player_saved_pos_z),
+            (init_position, pos24),
+            (position_set_x, pos24, ":last_x"),
+            (position_set_y, pos24, ":last_y"),
+            (position_set_z, pos24, ":last_z"),
+            (agent_set_position, ":agent_id", pos24),
+            (agent_set_position, ":player_horse", pos24),
+            (player_get_slot, ":horse_health", ":player_id", slot_player_saved_horse_health),
+            # Horse health
+            (try_begin),
+              (gt, ":horse_health", 0),
+              (agent_set_hit_points, ":player_horse", ":horse_health", 0),
+            (try_end),
+          (try_end),
+          (player_set_slot, ":player_id", slot_player_saved_horse_hp_restored, 1),
+        (try_end),
+        (try_begin),
+          (this_or_next|player_slot_eq, ":player_id", slot_player_spawn_state, player_spawn_state_dead),
+          (player_slot_eq, ":player_id", slot_player_spawn_state, player_spawn_state_invulnerable),
+          (call_script, "script_cf_player_check_spawn_agent", ":player_id"),
+          (assign, ":loop_end", -1), # if the spawn checks were run, end the loop to give other triggers a chance to run, then immediately continue
+          (store_add, "$g_loop_player_id", ":player_id", 1),
+        (try_end),
+        (try_begin),
+          (eq, "$g_loop_player_check_outlaw", 1),
+          (player_get_slot, ":outlaw_rating", ":player_id", slot_player_outlaw_rating),
+          (try_begin),
+            (gt, ":outlaw_rating", 0),
+            (val_sub, ":outlaw_rating", 1),
+            (player_set_slot, ":player_id", slot_player_outlaw_rating, ":outlaw_rating"),
+            (multiplayer_send_3_int_to_player, ":player_id", server_event_player_set_slot, ":player_id", slot_player_outlaw_rating, ":outlaw_rating"),
+          (try_end),
+        (try_end),
+      (try_end),
+    (try_end),
+    (eq, ":loop_end", ":max_players"), # if all players were checked, the trigger will succeed and wait the rearm interval before checking again
+    (assign, "$g_loop_player_id", 1), # go back to the start (player id 0 is the server)
+    (try_begin), # only decrease outlaw ratings at certain intervals, not every time
+      (ge, ":time", "$g_loop_player_check_outlaw_time"),
+      (val_add, "$g_loop_player_check_outlaw_time", loop_player_check_outlaw_interval),
+      (assign, "$g_loop_player_check_outlaw", 1),
+    (else_try),
+      (assign, "$g_loop_player_check_outlaw", 0),
+    (try_end),
+    ], [])
 

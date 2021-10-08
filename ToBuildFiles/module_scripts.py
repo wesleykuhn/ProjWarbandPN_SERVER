@@ -3346,6 +3346,9 @@ scripts.extend([("game_start", []), # single player only, not used
         (gt, reg12, 0),
         (player_add_spawn_item, ":player_id", ek_horse, reg12),
         (player_set_slot, ":player_id", slot_player_equip_horse, reg12),
+        (player_set_slot, ":player_id", slot_player_saved_horse_hp_restored, 0),
+      (else_try),
+        (player_set_slot, ":player_id", slot_player_saved_horse_hp_restored, 1),
       (try_end),
       (player_set_troop_id, ":player_id", reg13),
       (try_begin),
@@ -3363,8 +3366,7 @@ scripts.extend([("game_start", []), # single player only, not used
       (multiplayer_send_string_to_player, ":player_id", server_event_local_chat, s10),
       (multiplayer_send_string_to_player, ":player_id", server_event_local_chat, s11),
     (else_try),
-      # Disabled by now...
-      # (eq, ":return_code", 1),
+      (eq, ":return_code", 1), # Disabled by now...
       # (assign, ":agent_id", reg1),
       # (agent_get_player_id, ":player_id", ":agent_id"),
       # (gt, ":player_id", -1),
@@ -3399,6 +3401,7 @@ scripts.extend([("game_start", []), # single player only, not used
       (eq, ":return_code", 5),
       (assign, ":player_id", reg1),
       (neq, ":player_id", -1),
+      (multiplayer_send_int_to_player, ":player_id", server_event_play_sound, "snd_money_paid"),
       (call_script, "script_player_adjust_gold", ":player_id", 0, 0),
       (str_store_string, s11, "@Now your balance is {reg2} gold on bank."),
       (multiplayer_send_string_to_player, ":player_id", server_event_local_chat, s11),
@@ -14211,7 +14214,6 @@ scripts.extend([("game_start", []), # single player only, not used
 
   ("on_agent_spawned", # server and clients: set agent slots and attributes after spawning
    [(store_script_param, ":agent_id", 1), # must be valid
-
     (agent_set_slot, ":agent_id", slot_agent_horse_last_rider, -1),
     (agent_set_slot, ":agent_id", slot_agent_freeze_instance_id, -1),
     (agent_set_slot, ":agent_id", slot_agent_poisoner_agent_id, -1),
@@ -14240,11 +14242,20 @@ scripts.extend([("game_start", []), # single player only, not used
     (try_end),
     (try_begin),
       (player_is_active, ":player_id"),
+      # Settings/Restoring Food
       (player_get_slot, ":food_amount", ":player_id", slot_player_spawn_food_amount),
+      (try_begin),
+        (player_slot_eq, ":player_id", slot_player_saved_pos_restored, 0),
+        (player_slot_eq, ":player_id", slot_player_new_player, 0),
+        (player_slot_gt, ":player_id", slot_player_saved_food, 0),
+        (player_get_slot, ":saved_food", ":player_id", slot_player_saved_food),
+        (assign,  ":food_amount", ":saved_food"),
+      (try_end),
       (try_begin),
         (gt, ":food_amount", 0),
         (agent_set_slot, ":agent_id", slot_agent_food_amount, ":food_amount"),
         (player_set_slot, ":player_id", slot_player_spawn_food_amount, 0),
+        (multiplayer_send_3_int_to_player, ":player_id", server_event_agent_set_slot, ":agent_id", slot_agent_food_amount, ":food_amount"),
       (try_end),
       (try_begin),
         (player_is_admin, ":player_id"),
@@ -14285,11 +14296,9 @@ scripts.extend([("game_start", []), # single player only, not used
         (player_slot_eq, ":player_id", slot_player_saved_pos_restored, 0),
         (player_slot_eq, ":player_id", slot_player_new_player, 0),
         (player_get_slot, ":health", ":player_id", slot_player_saved_health),
-        (player_get_slot, ":food", ":player_id", slot_player_saved_food),
         (player_get_slot, ":last_x", ":player_id", slot_player_saved_pos_x),
         (player_get_slot, ":last_y", ":player_id", slot_player_saved_pos_y),
         (player_get_slot, ":last_z", ":player_id", slot_player_saved_pos_z),
-        (player_get_slot, ":horse_health", ":player_id", slot_player_saved_horse_health),
         # Last position
         (assign, ":has_pos", 1),
         (try_begin),
@@ -14300,31 +14309,19 @@ scripts.extend([("game_start", []), # single player only, not used
         (try_end),
         (try_begin),
           (eq, ":has_pos", 1),
+          (player_slot_eq, ":player_id", slot_player_saved_horse_hp_restored, 1),
           (init_position, pos24),
           (position_set_x, pos24, ":last_x"),
           (position_set_y, pos24, ":last_y"),
           (position_set_z, pos24, ":last_z"),
-          (agent_get_horse, ":horse_agent", ":agent_id"),
-          (try_begin),
-            (eq, ":horse_agent", -1),
-            (agent_set_position, ":agent_id", pos24),
-          (else_try),
-            (agent_set_position, ":agent_id", pos24),
-            (agent_set_position, ":horse_agent", pos24),
-            # Horse health
-            (try_begin),
-              (gt, ":horse_health", 0),
-              (agent_set_hit_points, ":horse_agent", ":horse_health", 0),
-            (try_end),
-          (try_end),
+          (agent_set_position, ":agent_id", pos24),
         (try_end),
         # Player health
         (try_begin),
           (gt, ":health", 0),
           (agent_set_hit_points, ":agent_id", ":health", 0),
+          (player_set_slot, ":player_id", slot_player_spawn_health_percent, 0),
         (try_end),
-        # Food
-        (agent_set_slot, ":agent_id", slot_agent_food_amount, ":food"),
         (player_set_slot, ":player_id", slot_player_saved_pos_restored, 1),
       (try_end),
       (try_begin),
@@ -14341,13 +14338,10 @@ scripts.extend([("game_start", []), # single player only, not used
       (neg|agent_is_human, ":agent_id"),
       (agent_get_item_id, ":horse_item_id", ":agent_id"),
       (gt,":horse_item_id",-1),
-      
       (this_or_next|is_between,":horse_item_id",pn_art_with_horse_begin, pn_art_with_horse_end),
       (is_between, ":horse_item_id", pn_art_horse_only_begin, pn_art_horse_only_end),
-
       (call_script,"script_attach_limber_to_horse",":agent_id"),
       (assign,":limber_wood_instance",reg0),
-
       (try_begin),
         (neg|is_between, ":horse_item_id", pn_art_horse_only_begin, pn_art_horse_only_end), #is not art with cannon horse
         (prop_instance_get_position, pos18, ":limber_wood_instance"),
@@ -14355,7 +14349,6 @@ scripts.extend([("game_start", []), # single player only, not used
         (position_move_z,pos18,14),
         (position_rotate_z,pos18,-90),
         (copy_position,pos49,pos18),
-
         (assign, ":is_a_cannon", 0),
         (try_begin),
           (is_between, ":horse_item_id", "itm_arty_horse_cannon_french", "itm_arty_horse_howitzer_french"),
@@ -14616,7 +14609,6 @@ scripts.extend([("game_start", []), # single player only, not used
   ("cf_save_player_exit", # server: when a player disconnects, save attributes to the inactive players list
     [
       (store_script_param, ":player_id", 1), # must be valid
-
       (player_get_agent_id, ":agent_id", ":player_id"),
       (gt, ":agent_id", 0),
       (agent_is_active, ":agent_id"),
@@ -14625,7 +14617,6 @@ scripts.extend([("game_start", []), # single player only, not used
       (agent_get_item_slot, ":item1", ":agent_id", 1),
       (agent_get_item_slot, ":item2", ":agent_id", 2),
       (agent_get_item_slot, ":item3", ":agent_id", 3),
-
       (try_begin),
         (is_between, ":item0", "itm_pw_banner_pole_a01", "itm_pw_banner_castle_fac_1a"),
         (assign, ":item0", 0),
@@ -14642,7 +14633,6 @@ scripts.extend([("game_start", []), # single player only, not used
         (is_between, ":item3", "itm_pw_banner_pole_a01", "itm_pw_banner_castle_fac_1a"),
         (assign, ":item3", 0),
       (try_end),
-
       (agent_get_item_slot, ":head", ":agent_id", ek_head),
       (agent_get_item_slot, ":body", ":agent_id", ek_body),
       (agent_get_item_slot, ":foot", ":agent_id", ek_foot),
@@ -14671,7 +14661,7 @@ scripts.extend([("game_start", []), # single player only, not used
       (assign, reg65, ":pos_y"),
       (assign, reg64, ":pos_z"),
       (agent_get_slot, ":food_amount", ":agent_id", slot_agent_food_amount),
-      (assign, reg114, ":food_amount"),
+      (assign, reg67, ":food_amount"),
       (try_begin),
       (gt, ":item0", -1),
       (call_script, "script_cf_agent_consume_item", ":agent_id", ":item0", 1),
@@ -14689,7 +14679,6 @@ scripts.extend([("game_start", []), # single player only, not used
       (call_script, "script_cf_agent_consume_item", ":agent_id", ":item3", 1),
       (try_end),
       (agent_fade_out, ":agent_id"),
-
       (try_begin), #checken ob pferd ueberhaupt existiert
         (agent_get_horse, ":horse", ":agent_id"),
         (agent_is_active, ":horse"),
@@ -14712,7 +14701,6 @@ scripts.extend([("game_start", []), # single player only, not used
         (assign, reg62, ":player_id"),
         (player_get_unique_id, reg61, ":player_id"),
         (assign, reg60, ":agent_id"),
-
         # NEW
         # Gold On Hand = d1 = reg80
         # Head = d2 = reg79
@@ -14735,7 +14723,6 @@ scripts.extend([("game_start", []), # single player only, not used
         # Player ID = reg62
         # GUID = reg61
         # Agent ID = reg60
-
         (send_message_to_url, "@{s17}?scpass={s19}&function=3&playerid={reg62}&agentid={reg60}&guid={reg61}&d1={reg80}&d2={reg79}&d3={reg78}&d4={reg77}&d5={reg76}&d6={reg75}&d7={reg74}&d8={reg73}&d9={reg72}&d10={reg71}&d11={reg70}&d12={reg69}&d13={reg68}&d14={reg67}&d15={reg66}&d16={reg65}&d17={reg64}&d18={reg63}"),
         (server_add_message_to_log, "@{s17}?scpass={s19}&function=3&playerid={reg62}&agentid={reg60}&guid={reg61}&d1={reg80}&d2={reg79}&d3={reg78}&d4={reg77}&d5={reg76}&d6={reg75}&d7={reg74}&d8={reg73}&d9={reg72}&d10={reg71}&d11={reg70}&d12={reg69}&d13={reg68}&d14={reg67}&d15={reg66}&d16={reg65}&d17={reg64}&d18={reg63}"),
     ]
